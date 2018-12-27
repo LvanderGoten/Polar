@@ -1,0 +1,5 @@
+numpy>=1.15.3
+pyyaml>=3.13
+opencv-python>=3.4.4.19
+torch>=1.0.0
+tensorboardX>=1.5
