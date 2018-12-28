@@ -161,8 +161,8 @@ def gen(batch_size, width, height, circle_radius, device):
 
     while True:
         # Random cartesian coordinates
-        x = np.random.uniform(low=-center_x, high=+center_x, size=batch_size)
-        y = np.random.uniform(low=-center_y, high=+center_y, size=batch_size)
+        x = np.random.uniform(low=-center_x + circle_radius, high=center_x - circle_radius, size=batch_size)
+        y = np.random.uniform(low=-center_y + circle_radius, high=center_y - circle_radius, size=batch_size)
 
         # Draw points
         x = x.astype(np.int32)
@@ -238,6 +238,11 @@ def main():
                           momentum=config["momentum"],
                           nesterov=config["nesterov"])
 
+    # Learning rate schedule
+    scheduler = optim.lr_scheduler.StepLR(optimizer,
+                                          step_size=config["steplr_step_size"],
+                                          gamma=config["steplr_gamma"])
+
     # Loss functions
     criterion_radius = nn.L1Loss()
 
@@ -265,6 +270,9 @@ def main():
         loss.backward()
         optimizer.step()
 
+        # Adjust learning rate
+        scheduler.step()
+
         # TensorBoard
         with torch.set_grad_enabled(mode=False):
 
@@ -279,20 +287,22 @@ def main():
             summary_writer.add_histogram(tag="histogram_radius_pred", values=radius_pred, global_step=global_step)
             summary_writer.add_histogram(tag="histogram_phi_pred", values=phi_pred, global_step=global_step)
 
-            # Apply on test batch
-            radius_test_pred, phi_test_pred = net(test_batch.image)
-            radius_test_pred = radius_test_pred.cpu().numpy()
-            phi_test_pred = phi_test_pred.cpu().numpy()
-
             # Draw
-            analysis.draw_test_batch(image_batch=test_batch.image.cpu().numpy(),
-                                     radius_batch=radius_test_pred,
-                                     phi_batch=phi_test_pred,
-                                     summary_writer=summary_writer,
-                                     global_step=global_step,
-                                     height=config["height"],
-                                     width=config["width"],
-                                     circle_radius=config["circle_radius"])
+            if config["save_images"]:
+
+                # Copy onto CPU
+                radius_test_pred, phi_test_pred = net(test_batch.image)
+                radius_test_pred = radius_test_pred.cpu().numpy()
+                phi_test_pred = phi_test_pred.cpu().numpy()
+
+                analysis.draw_test_batch(image_batch=test_batch.image.cpu().numpy(),
+                                         radius_batch=radius_test_pred,
+                                         phi_batch=phi_test_pred,
+                                         tmp_dir=tmp_dir,
+                                         global_step=global_step,
+                                         height=config["height"],
+                                         width=config["width"],
+                                         circle_radius=config["circle_radius"])
 
 
 if __name__ == "__main__":

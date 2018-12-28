@@ -23,7 +23,10 @@ def create_temp_dir(config_fname):
     tmp_dir = os.path.join(tempfile.gettempdir(), "PyTorch_{date:%Y-%m-%d_%H_%M_%S}".format(date=datetime.now()))
     os.makedirs(tmp_dir)
     shutil.copyfile(src=config_fname, dst=os.path.join(tmp_dir, os.path.basename(config_fname)))
-    print("Temporary directory: {}".format(tmp_dir))
+    print("Temporary model directory: {}".format(tmp_dir))
+    img_dir = os.path.join(tmp_dir, "images")
+    os.makedirs(img_dir)
+    print("Temporary image directory: {}".format(img_dir))
     return tmp_dir
 
 
