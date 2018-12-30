@@ -45,7 +45,10 @@ def great_circle_distance(alpha, beta):
     :param beta: A PyTorch Tensor that specifies the second angle
     :return: A new PyTorch Tensor of the same shape and dtype
     """
-    return torch.atan2(torch.sin(beta - alpha), torch.cos(beta - alpha)).abs()/np.pi
+    abs_diff = torch.abs(beta - alpha)
+    return torch.where(abs_diff <= np.pi,
+                       abs_diff,
+                       2. * np.pi - abs_diff)/np.pi
 
 
 class Network(nn.Module):
@@ -136,7 +139,7 @@ class Network(nn.Module):
             if batch_norm is not None:
                 x = batch_norm(x)
 
-        # Final cnn_activations
+        # Final activations
         radius_pred = scaled_softsign(x[:, 0])
         phi_pred = np.pi * softsign(x[:, 1])
 
