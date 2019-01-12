@@ -104,6 +104,11 @@ class Network(nn.Module):
         self.batch_norms = [nn.BatchNorm1d(num_features=num_units,
                                            affine=False) for num_units in self.fc_num_units[1:-1]]
 
+        # Lambda (scale) of activation function
+        self.activation_lambda = network_config["activation_lambda"]
+        self.activation_radius = nn.Sigmoid()
+        self.activation_angle = nn.Tanh()
+
         # Make PyTorch aware of sub-networks
         self.cnn = nn.ModuleList(self.cnn)
         self.instance_norms = nn.ModuleList(self.instance_norms)
@@ -140,10 +145,10 @@ class Network(nn.Module):
                 x = batch_norm(x)
 
         # Final activations
-        radius_pred = scaled_softsign(x[:, 0])
-        phi_pred = np.pi * softsign(x[:, 1])
+        radius_pred = self.activation_radius(self.activation_lambda * x[:, 0])
+        angle_pred = np.pi * self.activation_radius(self.activation_lambda * x[:, 1])
 
-        return radius_pred, phi_pred
+        return radius_pred, angle_pred
 
 
 def gen(batch_size, width, height, circle_radius, device):

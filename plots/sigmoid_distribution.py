@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 EPS = .001
-scales = np.arange(start=1, stop=6)/5
+# scales = np.arange(start=1, stop=6)/5
+scales = [1.15]
 MU = 0
 STD = 1
-A, B = -1, 1
+A, B = -3.38, 3.38
 
 
 def sigmoid(x):
@@ -66,13 +67,13 @@ def pdf_parametric(y, scale, mu=MU, std=STD):
 
 
 yy = np.linspace(start=EPS, stop=1-EPS, num=100)
-plt.plot(yy, pdf_sigmoid_uniform(yy), label=r"$\sigma(\cdot)$")
+plt.plot(yy, pdf_sigmoid_uniform(yy), label=r"$f_Y$")
 
 for scale in reversed(scales):
-    plt.plot(yy, pdf_parametric_uniform(yy, scale=scale), label=r"$\hat{s}_{" + str(scale) + r"}$")
+    plt.plot(yy, pdf_parametric_uniform(yy, scale=scale), label=r"$f_{Y_{" + str(scale) + r"}}$")
 
-plt.xlabel(r"$x$")
-plt.ylabel(r"$f_X(x)$")
+plt.xlabel(r"$y$")
+plt.ylabel(r"Density")
 plt.legend(loc='upper left', prop={'size': 22})
 plt.tight_layout()
 plt.show()
