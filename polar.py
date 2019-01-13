@@ -102,7 +102,7 @@ class Network(nn.Module):
 
         # Batch normalization
         self.batch_norms = [nn.BatchNorm1d(num_features=num_units,
-                                           affine=False) for num_units in self.fc_num_units[1:-1]]
+                                           affine=False) for num_units in self.fc_num_units[1:]]
 
         # Lambda (scale) of activation function
         self.activation_lambda = network_config["activation_lambda"]
@@ -146,7 +146,8 @@ class Network(nn.Module):
 
         # Final activations
         radius_pred = self.activation_radius(self.activation_lambda * x[:, 0])
-        angle_pred = np.pi * self.activation_radius(self.activation_lambda * x[:, 1])
+        angle_pred = np.pi * self.activation_angle(self.activation_lambda/2. * x[:, 1])
+        # angle_pred = np.pi * (2 * self.activation_angle(self.activation_lambda * x[:, 1]) - 1.)
 
         return radius_pred, angle_pred
 
@@ -168,6 +169,7 @@ def gen(batch_size, width, height, circle_radius, device):
     max_radial_dist = np.sqrt(center_x**2 + center_y**2)
 
     while True:
+
         # Random cartesian coordinates
         x = np.random.uniform(low=-center_x + circle_radius, high=center_x - circle_radius, size=batch_size)
         y = np.random.uniform(low=-center_y + circle_radius, high=center_y - circle_radius, size=batch_size)
@@ -298,6 +300,9 @@ def main():
             # Draw
             if config["save_images"]:
 
+                # Eval mode
+                net = net.eval()
+
                 # Copy onto CPU
                 radius_test_pred, phi_test_pred = net(test_batch.image)
                 radius_test_pred = radius_test_pred.cpu().numpy()
@@ -311,6 +316,9 @@ def main():
                                          height=config["height"],
                                          width=config["width"],
                                          circle_radius=config["circle_radius"])
+
+                # Training mode
+                net = net.train()
 
 
 if __name__ == "__main__":

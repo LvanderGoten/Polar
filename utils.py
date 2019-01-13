@@ -75,7 +75,8 @@ def build_dense_network(num_units, activations):
 
         # Create layer
         fc_layer = nn.Linear(in_features=in_features,
-                             out_features=out_features)
+                             out_features=out_features,
+                             bias=True)
 
         # Xavier initialization
         nn.init.xavier_uniform_(fc_layer.weight, gain=activation_gain)

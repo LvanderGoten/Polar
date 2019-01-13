@@ -4,19 +4,19 @@ import numpy as np
 
 EPS = .001
 # scales = np.arange(start=1, stop=6)/5
-scales = [1.15]
+scales = [1.95]
 MU = 0
 STD = 1
-A, B = -3.38, 3.38
+A, B = -np.sqrt(3), np.sqrt(3)
 
 
 def sigmoid(x):
     return np.reciprocal(1 + np.exp(-x))
 
 
-def pdf_sigmoid_uniform(y, a=A, b=B):
-    return np.where(np.logical_and(sigmoid(a) <= y, y <= sigmoid(b)),
-                    1/(b - a) * 1/(y - np.square(y)),
+def pdf_sigmoid_uniform(y, scale, a=A, b=B):
+    return np.where(np.logical_and(sigmoid(scale * a) <= y, y <= sigmoid(scale * b)),
+                    1/((b - a)*scale) * 1/(y - np.square(y)),
                     np.zeros_like(y))
 
 
@@ -67,7 +67,7 @@ def pdf_parametric(y, scale, mu=MU, std=STD):
 
 
 yy = np.linspace(start=EPS, stop=1-EPS, num=100)
-plt.plot(yy, pdf_sigmoid_uniform(yy), label=r"$f_Y$")
+plt.plot(yy, pdf_sigmoid_uniform(yy, scale=scales[0]), label=r"$f_Y$")
 
 for scale in reversed(scales):
     plt.plot(yy, pdf_parametric_uniform(yy, scale=scale), label=r"$f_{Y_{" + str(scale) + r"}}$")
