@@ -32,9 +32,9 @@ def draw_test_batch(image_batch, radius_batch, phi_batch, tmp_dir, global_step, 
     # Spatial
     center_x = width // 2
     center_y = height // 2
-    max_radial_dist = np.sqrt(center_x ** 2 + center_y ** 2)
-    padding_width = (int(max_radial_dist) - center_x) // 2
-    padding_height = (int(max_radial_dist) - center_y) // 2
+    max_radial_dist = np.sqrt(center_x**2 + center_y**2)
+    padding_width = int(max_radial_dist) - center_x
+    padding_height = int(max_radial_dist) - center_y
 
     # Output
     img_path = pathlib.Path(tmp_dir).joinpath("images")

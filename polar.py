@@ -147,7 +147,6 @@ class Network(nn.Module):
         # Final activations
         radius_pred = self.activation_radius(self.activation_lambda * x[:, 0])
         angle_pred = np.pi * self.activation_angle(self.activation_lambda/2. * x[:, 1])
-        # angle_pred = np.pi * (2 * self.activation_angle(self.activation_lambda * x[:, 1]) - 1.)
 
         return radius_pred, angle_pred
 
