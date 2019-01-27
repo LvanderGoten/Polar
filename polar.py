@@ -153,7 +153,7 @@ class Network(nn.Module):
 
 def gen(batch_size, width, height, circle_radius, device):
     """
-    A generator that yields batches
+    A generator that yields batches by using the disk picking algorithm
     :param batch_size: An arbitrary batch size > 1
     :param width: The horizontal dimension of the input images
     :param height: The vertical dimension of the input images
@@ -165,17 +165,20 @@ def gen(batch_size, width, height, circle_radius, device):
     # Spatial
     center_x = width // 2
     center_y = height // 2
-    max_radial_dist = np.sqrt(center_x**2 + center_y**2)
 
     while True:
 
-        # Random cartesian coordinates
-        x = np.random.uniform(low=-center_x + circle_radius, high=center_x - circle_radius, size=batch_size)
-        y = np.random.uniform(low=-center_y + circle_radius, high=center_y - circle_radius, size=batch_size)
+        # Random polar coordinates
+        r = np.random.rand(batch_size)
+        phi = np.pi * (2 * np.random.rand(batch_size) - 1)
 
-        # Draw points
-        x = x.astype(np.int32)
-        y = y.astype(np.int32)
+        x = np.sqrt(r) * np.cos(phi)
+        y = np.sqrt(r) * np.sin(phi)
+
+        # To screen coordinates
+        x = ((center_x - circle_radius) * x).astype(np.int32)
+        y = ((center_y - circle_radius) * y).astype(np.int32)
+
         img_batch = []
         for i in range(batch_size):
             img = np.ones(shape=[height, width, 3], dtype=np.float32)    # [H, W, C]
@@ -195,14 +198,9 @@ def gen(batch_size, width, height, circle_radius, device):
         # Revert dimensions
         img_batch = np.transpose(img_batch, axes=[0, 3, 1, 2])
 
-        # Polar coordinates (radii are normalized w.r.t maximum radius)
-        cartesian = np.stack((x, y), axis=1)
-        radius = np.linalg.norm(cartesian, axis=1, ord=2) / max_radial_dist
-        phi = np.arctan2(y, x)
-
         # Copy onto device
         img_batch = torch.tensor(img_batch, dtype=torch.float32, device=device)
-        radius = torch.tensor(radius, dtype=torch.float32, device=device)
+        radius = torch.tensor(r, dtype=torch.float32, device=device)
         phi = torch.tensor(phi, dtype=torch.float32, device=device)
 
         yield Batch(img_batch, radius, phi)

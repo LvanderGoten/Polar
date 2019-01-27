@@ -2,12 +2,23 @@ import seaborn as sns; sns.set(font_scale=2)
 import matplotlib.pyplot as plt
 import numpy as np
 
+MEDIUM_SIZE = 25
+BIGGER_SIZE = 30
+
+plt.rc('font', size=BIGGER_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=BIGGER_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=BIGGER_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=MEDIUM_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=BIGGER_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+
 EPS = .001
-# scales = np.arange(start=1, stop=6)/5
-scales = [1.95]
+scales = [0.1, 0.25, 0.5, 1.0, 2.0]
 MU = 0
 STD = 1
-A, B = -np.sqrt(3), np.sqrt(3)
+A, B = -1, 1
 
 
 def sigmoid(x):
@@ -66,14 +77,23 @@ def pdf_parametric(y, scale, mu=MU, std=STD):
                     above)
 
 
+fig, ax = plt.subplots(nrows=1, ncols=2, sharey=True, sharex=True, gridspec_kw = {'width_ratios': [1, 1]})
+plt.subplots_adjust(wspace=.05)
 yy = np.linspace(start=EPS, stop=1-EPS, num=100)
-plt.plot(yy, pdf_sigmoid_uniform(yy, scale=scales[0]), label=r"$f_Y$")
 
+sigmoid_handles, softsign_handles = [], []
 for scale in reversed(scales):
-    plt.plot(yy, pdf_parametric_uniform(yy, scale=scale), label=r"$f_{Y_{" + str(scale) + r"}}$")
+    sigmoid_handles.append(ax[0].plot(yy, pdf_sigmoid_uniform(yy, scale=scale,), linewidth=3)[0])
+    softsign_handles.append(ax[1].plot(yy, pdf_parametric_uniform(yy, scale=scale), linewidth=3)[0])
 
-plt.xlabel(r"$y$")
-plt.ylabel(r"Density")
-plt.legend(loc='upper left', prop={'size': 22})
-plt.tight_layout()
+ax[0].set_title("Sigmoid family")
+ax[0].set_aspect(1/20, adjustable="box")
+ax[1].set_aspect(1/20, adjustable="box")
+ax[1].set_title("Scaled softsign family")
+labels = [r"$\lambda = {}$".format(s) for s in scales]
+plt.legend(sigmoid_handles + softsign_handles, labels, loc='upper right')
+
+ax[0].set_ylabel("Density")
+ax[0].set_xlabel(r"$y$")
+ax[1].set_xlabel(r"$z$")
 plt.show()
