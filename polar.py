@@ -88,6 +88,9 @@ class Network(nn.Module):
                                                            activations=cnn_config["activations"],
                                                            in_height=in_height, in_width=in_width)
 
+        # Dropout
+        self.cnn_dropout = [nn.Dropout(p=cnn_config["dropout_prob"]) for _ in self.cnn]
+
         # Instance normalization
         self.instance_norms = [nn.InstanceNorm2d(num_features=cnn_out_channel,
                                                  track_running_stats=True) for cnn_out_channel in
@@ -99,6 +102,7 @@ class Network(nn.Module):
         self.fc_activations = list(map(utils.resolve_activations, fc_config["activations"]))
         self.fc_num_units = [in_features] + fc_config["num_units"] + [2]
         self.fc = utils.build_dense_network(num_units=self.fc_num_units, activations=fc_config["activations"])
+        self.fc_dropout = [nn.Dropout(p=fc_config["dropout_prob"]) for _ in self.fc]
 
         # Batch normalization
         self.batch_norms = [nn.BatchNorm1d(num_features=num_units,
@@ -125,22 +129,31 @@ class Network(nn.Module):
 
         # Pass through convolutional layers
         x = image
-        for cnn_layer, activation, instance_norm in zip(self.cnn,
-                                                        self.cnn_activations,
-                                                        self.instance_norms):
+        for cnn_layer, activation, instance_norm, dropout_layer in zip(self.cnn,
+                                                                       self.cnn_activations,
+                                                                       self.instance_norms,
+                                                                       self.cnn_dropout):
             x = cnn_layer(x)
             x = activation(x)
+            x = dropout_layer(x)
             x = instance_norm(x)
 
         # Flatten last two dimensions
         x = x.view(x.shape[0], -1)  # [B, C * H * W]
 
         # Pass through fully-connected layers
-        for fc_layer, activation, batch_norm in zip_longest(self.fc, self.fc_activations, self.batch_norms):
+        for fc_layer, activation, batch_norm, dropout_layer in zip_longest(self.fc,
+                                                                           self.fc_activations,
+                                                                           self.batch_norms,
+                                                                           self.fc_dropout):
             x = fc_layer(x)
 
             if activation is not None:
                 x = activation(x)
+
+            # Szegedy order
+            x = dropout_layer(x)
+
             if batch_norm is not None:
                 x = batch_norm(x)
 
@@ -151,20 +164,18 @@ class Network(nn.Module):
         return radius_pred, angle_pred
 
 
-def gen(batch_size, width, height, circle_radius, device):
+def gen(batch_size, size, circle_radius, device):
     """
     A generator that yields batches by using the disk picking algorithm
     :param batch_size: An arbitrary batch size > 1
-    :param width: The horizontal dimension of the input images
-    :param height: The vertical dimension of the input images
+    :param size: The size of the input images
     :param circle_radius: The size of the two points to be drawn
     :param device: A PyTorch device (e.g. "cuda:0" or "cpu")
     :yields Named "Batch" tuples that contain the image as well as the ground truth
     """
 
     # Spatial
-    center_x = width // 2
-    center_y = height // 2
+    center = size // 2
 
     while True:
 
@@ -172,24 +183,26 @@ def gen(batch_size, width, height, circle_radius, device):
         r = np.random.rand(batch_size)
         phi = np.pi * (2 * np.random.rand(batch_size) - 1)
 
-        x = np.sqrt(r) * np.cos(phi)
-        y = np.sqrt(r) * np.sin(phi)
+        x = (center - circle_radius) * r * np.cos(phi)
+        y = (center - circle_radius) * r * np.sin(phi)
 
         # To screen coordinates
-        x = ((center_x - circle_radius) * x).astype(np.int32)
-        y = ((center_y - circle_radius) * y).astype(np.int32)
+        x = x.astype(np.int32)
+        y = y.astype(np.int32)
 
         img_batch = []
         for i in range(batch_size):
-            img = np.ones(shape=[height, width, 3], dtype=np.float32)    # [H, W, C]
+            img = np.ones(shape=[size, size, 3], dtype=np.float32)    # [H, W, C]
             img = cv2.circle(img=img.copy(),
-                             center=(center_x, center_y),
+                             center=(center, center),
                              radius=circle_radius,
-                             color=[0, 0, 0], thickness=cv2.FILLED)
+                             color=[0, 0, 0],
+                             thickness=cv2.FILLED)
             img = cv2.circle(img=img,
-                             center=(center_x + x[i], center_y - y[i]),
+                             center=(center + x[i], center - y[i]),
                              radius=circle_radius,
-                             color=[0, 1, 0], thickness=cv2.FILLED)
+                             color=[0, 1, 0],
+                             thickness=cv2.FILLED)
             img_batch.append(img)
 
         # Stack
@@ -229,15 +242,14 @@ def main():
 
     # Test batch (for visualization purposes)
     test_batch = analysis.get_test_batch(batch_size=config["batch_size"],
-                                         width=config["width"],
-                                         height=config["height"],
+                                         size=config["size"],
                                          circle_radius=config["circle_radius"],
                                          device=device)
 
     # Build network
     net = Network(config["network"],
-                  in_height=config["height"],
-                  in_width=config["width"]).to(device)
+                  in_height=config["size"],
+                  in_width=config["size"]).to(device)
 
     # Optimizer
     optimizer = optim.SGD(net.parameters(),
@@ -246,9 +258,7 @@ def main():
                           nesterov=config["nesterov"])
 
     # Learning rate schedule
-    scheduler = optim.lr_scheduler.StepLR(optimizer,
-                                          step_size=config["steplr_step_size"],
-                                          gamma=config["steplr_gamma"])
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=config["lr_gamma"])
 
     # Loss functions
     criterion_radius = nn.L1Loss()
@@ -264,8 +274,7 @@ def main():
         return great_circle_distance(alpha, beta).mean()
 
     for global_step, batch in enumerate(gen(batch_size=config["batch_size"],
-                                            height=config["height"],
-                                            width=config["width"],
+                                            size=config["size"],
                                             circle_radius=config["circle_radius"],
                                             device=device)):
 
@@ -278,7 +287,8 @@ def main():
         optimizer.step()
 
         # Adjust learning rate
-        scheduler.step()
+        if global_step % config["lr_step"] == 0:
+            scheduler.step()
 
         # TensorBoard
         with torch.set_grad_enabled(mode=False):
@@ -287,6 +297,7 @@ def main():
             radius_pred = radius_pred.cpu().numpy()
             phi_pred = phi_pred.cpu().numpy()
 
+            summary_writer.add_scalar(tag="lr", scalar_value=utils.get_lr(optimizer), global_step=global_step)
             summary_writer.add_scalar(tag="l1_radius", scalar_value=loss_radius, global_step=global_step)
             summary_writer.add_scalar(tag="l1_phi", scalar_value=loss_phi, global_step=global_step)
             summary_writer.add_scalar(tag="l1", scalar_value=loss, global_step=global_step)
@@ -310,8 +321,7 @@ def main():
                                          phi_batch=phi_test_pred,
                                          tmp_dir=tmp_dir,
                                          global_step=global_step,
-                                         height=config["height"],
-                                         width=config["width"],
+                                         size=config["size"],
                                          circle_radius=config["circle_radius"])
 
                 # Training mode

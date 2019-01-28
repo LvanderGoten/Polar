@@ -87,6 +87,11 @@ def build_dense_network(num_units, activations):
     return fc
 
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
+
+
 def compute_output_shape(h_in, kernel_size, stride):
     return int((h_in - kernel_size)/stride + 1)
 
