@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
 # Matplotlib
-MEDIUM_SIZE = 25
-BIGGER_SIZE = 30
+MEDIUM_SIZE = 30
+BIGGER_SIZE = 40
 
 plt.rc('font', size=BIGGER_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)     # fontsize of the axes title
@@ -22,11 +22,29 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 # Constants
 METRICS = ["l1", "l1_phi", "l1_radius"]
 METRICS_LATEX = [r"$\mathcal{L}_1$", r"$\mathcal{L}_\phi$", r"$\mathcal{L}_r$"]
+HISTOGRAM_LIMITS = {"histogram_radius_pred": np.array([0., 1.]),
+                    "histogram_phi_pred": np.array([-np.pi, np.pi])}
+STEP_FREQUENCY = 50
+
 
 # Named tuples
 ScalarSummary = namedtuple("ScalarSummary", field_names=["steps", "values"])
 HistogramSummary = namedtuple("HistogramSummary", field_names=["steps", "basis_points", "values"])
 RunSummary = namedtuple("RunSummary", field_names=["scalar_summaries", "histogram_summaries"])
+
+
+def icdf2probs(basis_points, icdf_values):
+
+    # Scale basis points to be between 0 and 1
+    normalized_basis_points = basis_points/10000
+
+    # Compute probabilities
+    probs = normalized_basis_points[:, 1:] - normalized_basis_points[:, :-1]
+
+    # Compute intervals
+    intervals = np.stack((icdf_values[:, :-1], icdf_values[:, 1:]), axis=1)
+
+    return intervals, probs
 
 
 def read_data_from_event_file(event_fname, horizon):
@@ -124,7 +142,7 @@ def main():
         for run_id, (run_label, run_summary) in enumerate(run_summaries.items()):
             metric_steps, metric_values = run_summary.scalar_summaries[metric]
 
-            # Interpolate
+            # Smoothing
             steps = np.linspace(metric_steps[0], metric_steps[-1])
             metric_interp = splrep(metric_steps, metric_values, k=3)
 
@@ -147,6 +165,41 @@ def main():
     plt.subplots_adjust(right=0.9)
     sns.despine(left=True, bottom=True, right=True)
     plt.savefig("loss.png", transparent=True)
+    plt.close()
+
+    # Histograms
+    fig, axes = plt.subplots(nrows=num_runs, ncols=len(HISTOGRAM_LIMITS), sharex="col", sharey=True, figsize=(50, 20))
+    plt.subplots_adjust(wspace=.05)
+    for run_id, (run_label, run_summary) in enumerate(run_summaries.items()):
+        for histogram_id, (histogram_quantity, histogram_summary) in enumerate(run_summary.histogram_summaries.items()):
+            steps, basis_points, icdf_values = histogram_summary
+            intervals, probs = icdf2probs(basis_points, icdf_values)
+            interval_width = intervals[:, 1, :] - intervals[:, 0, :]
+
+            # Plot
+            ax = axes[run_id, histogram_id]
+            ax.set_xlim(HISTOGRAM_LIMITS[histogram_quantity])
+            ax.set_title(r"$\lambda = {}$".format(run_label))
+            ax.grid(True)
+            num_steps = intervals.shape[0]
+            probs_max = probs.max()
+            offsets = (num_steps - np.arange(num_steps)) * probs_max/100
+
+            ax.set_yticks([offsets[0], offsets[-1]])
+            ax.set_yticklabels([0, args.horizon])
+
+            for t in range(num_steps):
+                x = intervals[t, 0, :]
+                width = interval_width[t, :]
+                y = probs[t, :]
+                offset = offsets[t]
+
+                ax.plot(x + width/2, y + offset, 'w', lw=2, zorder=(t + 1) * 2)
+                ax.fill_between(x + width/2, y + offset, offset, facecolor="#707070", lw=0, zorder=(t + 1) * 2 - 1)
+
+    fig.text(0.5, 0.04, 'Density', ha='center')
+    fig.text(0.085, 0.5, 'Steps', va='center', rotation='vertical')
+    plt.savefig("histograms.png")
 
 
 if __name__ == "__main__":
