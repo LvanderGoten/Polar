@@ -1,6 +1,6 @@
 
 # Blog article
-TBA
+[VANDERGOTEN.ai](http://vandergoten.ai/2018-12-18-learning-polar-coordinates-visually/)
 
 # Disclaimer
 The usage of this code comes at absolutely *no* warranty. Its execution might incur undesired effects for which I take no responsibility.
