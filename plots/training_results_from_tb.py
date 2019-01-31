@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
 # Matplotlib
-MEDIUM_SIZE = 30
-BIGGER_SIZE = 40
+MEDIUM_SIZE = 40
+BIGGER_SIZE = 50
 
 plt.rc('font', size=BIGGER_SIZE)          # controls default text sizes
 plt.rc('axes', titlesize=BIGGER_SIZE)     # fontsize of the axes title
@@ -21,7 +21,7 @@ plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 # Constants
 METRICS = ["l1", "l1_phi", "l1_radius"]
-METRICS_LATEX = [r"$\mathcal{L}_1$", r"$\mathcal{L}_\phi$", r"$\mathcal{L}_r$"]
+METRICS_LATEX = [r"$\mathcal{L}$", r"$\mathcal{L}_\phi$", r"$\mathcal{L}_r$"]
 HISTOGRAM_LIMITS = {"histogram_radius_pred": np.array([0., 1.]),
                     "histogram_phi_pred": np.array([-np.pi, np.pi])}
 STEP_FREQUENCY = 50
@@ -169,7 +169,7 @@ def main():
 
     # Histograms
     fig, axes = plt.subplots(nrows=num_runs, ncols=len(HISTOGRAM_LIMITS), sharex="col", sharey=True, figsize=(50, 20))
-    plt.subplots_adjust(wspace=.05)
+    plt.subplots_adjust(wspace=.05, hspace=0.3)
     for run_id, (run_label, run_summary) in enumerate(run_summaries.items()):
         for histogram_id, (histogram_quantity, histogram_summary) in enumerate(run_summary.histogram_summaries.items()):
             steps, basis_points, icdf_values = histogram_summary
